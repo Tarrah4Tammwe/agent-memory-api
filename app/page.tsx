@@ -91,9 +91,9 @@ export default function Home() {
   "key_facts": ["£9.99/month subscription price"],
   "meta": {
     "message_count": 3,
-    "approx_input_tokens": 48,
-    "approx_output_tokens": 85,
-    "compression_ratio": -77
+    "approx_input_tokens": 320,
+    "approx_output_tokens": 90,
+    "compression_ratio": 72
   }
 }`}
         </pre>

@@ -131,9 +131,15 @@ Return this exact structure (only the fields requested):
     )
   }
 
+  // Only return the explicitly requested fields — never spread unknown keys from Claude's output
+  const safeOutput: Record<string, unknown> = {}
+  for (const field of requestedFields) {
+    safeOutput[field] = parsed[field] ?? null
+  }
+
   return NextResponse.json({
     success: true,
-    ...parsed,
+    ...safeOutput,
     meta: {
       fields_extracted: requestedFields,
       approx_input_tokens: Math.round(text.length / 4),
