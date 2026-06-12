@@ -7,6 +7,8 @@ interface ExtractRequest {
   extract?: string[]
 }
 
+const VALID_FIELDS = ['decisions', 'open_questions', 'entities', 'next_actions', 'key_facts', 'timeline', 'constraints']
+
 export async function POST(req: NextRequest) {
   if (!ANTHROPIC_API_KEY) {
     return NextResponse.json({ success: false, error: 'API key not configured' }, { status: 500 })
@@ -30,28 +32,40 @@ export async function POST(req: NextRequest) {
 
   if (text.length > 100000) {
     return NextResponse.json(
-      { success: false, error: 'text exceeds 100,000 character limit. Use /api/summarise for long conversations.' },
+      { success: false, error: `text exceeds 100,000 character limit (received ${text.length.toLocaleString()}). Split into smaller chunks.` },
       { status: 400 }
     )
   }
 
-  const validFields = ['decisions', 'open_questions', 'entities', 'next_actions', 'key_facts', 'timeline', 'constraints']
-  const requestedFields = extract && Array.isArray(extract) && extract.length > 0
-    ? extract.filter(f => validFields.includes(f))
-    : validFields
-
-  if (requestedFields.length === 0) {
-    return NextResponse.json(
-      { success: false, error: `"extract" must contain at least one valid field: ${validFields.join(', ')}` },
-      { status: 400 }
-    )
+  // Validate extract fields — error on invalid, don't silently drop
+  let requestedFields: string[]
+  if (extract !== undefined) {
+    if (!Array.isArray(extract) || extract.length === 0) {
+      return NextResponse.json(
+        { success: false, error: '"extract" must be a non-empty array of field names' },
+        { status: 400 }
+      )
+    }
+    const invalidFields = extract.filter(f => !VALID_FIELDS.includes(f))
+    if (invalidFields.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Invalid field(s): ${invalidFields.join(', ')}. Valid options are: ${VALID_FIELDS.join(', ')}`,
+        },
+        { status: 400 }
+      )
+    }
+    requestedFields = extract
+  } else {
+    requestedFields = VALID_FIELDS
   }
 
   const fieldDescriptions: Record<string, string> = {
     decisions: '"decisions": ["array of concrete decisions, conclusions, or commitments"]',
     open_questions: '"open_questions": ["array of unresolved questions or outstanding items"]',
     entities: '"entities": {"people": [], "organisations": [], "projects": [], "tools": [], "locations": [], "other": []}',
-    next_actions: '"next_actions": ["array of action items, tasks, or next steps with owner if mentioned"]',
+    next_actions: '"next_actions": ["array of action items or next steps, with owner if mentioned"]',
     key_facts: '"key_facts": ["specific facts, numbers, dates, constraints, or requirements"]',
     timeline: '"timeline": [{"event": "string", "date_or_order": "string"}]',
     constraints: '"constraints": ["hard limitations, blockers, or non-negotiable requirements"]',
@@ -70,6 +84,9 @@ Return this exact structure (only the fields requested):
   ${requestedSchema}
 }`
 
+  // Scale max_tokens to input size — floor 800, ceil 2000
+  const scaledMaxTokens = Math.min(2000, Math.max(800, Math.round(text.length / 50)))
+
   let claudeResponse: Response
   try {
     claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
@@ -80,8 +97,8 @@ Return this exact structure (only the fields requested):
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5',
-        max_tokens: 800,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: scaledMaxTokens,
         system: systemPrompt,
         messages: [{ role: 'user', content: `Extract from the following text:\n\n${text}` }],
       }),
@@ -127,16 +144,16 @@ Return this exact structure (only the fields requested):
 export async function GET() {
   return NextResponse.json({
     endpoint: 'POST /api/extract',
-    description: 'Extract structured facts from any text block — meeting notes, documents, transcripts, agent outputs. Selectively pull only the fields you need.',
+    description: 'Extract structured facts from any unstructured text — meeting notes, documents, transcripts, agent outputs. Use this for free-form text. For structured conversation histories (user/assistant turns), use /api/summarise instead.',
     body: {
       text: 'string (required) — any text up to 100,000 characters',
-      extract: 'array (optional) — fields to extract. Defaults to all. Options: decisions, open_questions, entities, next_actions, key_facts, timeline, constraints',
+      extract: `array (optional) — specific fields to return. Omit to return all. Must be valid field names only — invalid fields return a 400 error. Options: ${VALID_FIELDS.join(', ')}`,
     },
     returns: [
       'decisions: concrete conclusions or commitments',
       'open_questions: unresolved items',
       'entities: people, organisations, projects, tools, locations, other',
-      'next_actions: tasks or action items',
+      'next_actions: tasks or action items with owner if mentioned',
       'key_facts: numbers, dates, constraints, requirements',
       'timeline: ordered events with dates or sequence',
       'constraints: hard limits, blockers, non-negotiables',

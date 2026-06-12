@@ -13,6 +13,8 @@ interface SummariseRequest {
   max_summary_tokens?: number
 }
 
+const MAX_INPUT_CHARS = 120000
+
 export async function POST(req: NextRequest) {
   if (!ANTHROPIC_API_KEY) {
     return NextResponse.json({ success: false, error: 'API key not configured' }, { status: 500 })
@@ -49,23 +51,40 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const maxSummaryTokens = max_summary_tokens ?? 300
-  if (maxSummaryTokens < 50 || maxSummaryTokens > 1000) {
+  if (focus !== undefined && typeof focus !== 'string') {
     return NextResponse.json(
-      { success: false, error: 'max_summary_tokens must be between 50 and 1000' },
+      { success: false, error: '"focus" must be a string' },
       { status: 400 }
     )
   }
 
-  // Count approximate input tokens (4 chars ≈ 1 token)
+  const maxSummaryTokens = max_summary_tokens ?? 300
+  if (typeof maxSummaryTokens !== 'number' || maxSummaryTokens < 50 || maxSummaryTokens > 1000) {
+    return NextResponse.json(
+      { success: false, error: 'max_summary_tokens must be a number between 50 and 1000' },
+      { status: 400 }
+    )
+  }
+
   const rawText = messages.map(m => `${m.role}: ${m.content}`).join('\n')
+
+  if (rawText.length > MAX_INPUT_CHARS) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Input exceeds ${MAX_INPUT_CHARS.toLocaleString()} character limit (received ${rawText.length.toLocaleString()}). Truncate or batch your messages.`,
+      },
+      { status: 400 }
+    )
+  }
+
   const approxInputTokens = Math.round(rawText.length / 4)
 
   const focusInstruction = focus
     ? `Pay special attention to anything related to: ${focus}.`
     : ''
 
-  const systemPrompt = `You are a precise context summariser for AI agent pipelines. 
+  const systemPrompt = `You are a precise context summariser for AI agent pipelines.
 Given a conversation history, extract structured memory so an AI agent can continue work without needing the full conversation.
 Respond ONLY with a valid JSON object — no preamble, no markdown fences, no explanation.
 ${focusInstruction}
@@ -101,8 +120,8 @@ Return this exact structure:
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5',
-        max_tokens: maxSummaryTokens + 100,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: maxSummaryTokens + 200,
         system: systemPrompt,
         messages: [{ role: 'user', content: userMessage }],
       }),
@@ -136,6 +155,10 @@ Return this exact structure:
     )
   }
 
+  const compressionRatio = approxInputTokens > approxOutputTokens
+    ? Math.round((1 - approxOutputTokens / approxInputTokens) * 100)
+    : 0
+
   return NextResponse.json({
     success: true,
     summary: parsed.summary ?? '',
@@ -148,9 +171,7 @@ Return this exact structure:
       message_count: messages.length,
       approx_input_tokens: approxInputTokens,
       approx_output_tokens: approxOutputTokens,
-      compression_ratio: approxInputTokens > 0
-        ? Math.round((1 - approxOutputTokens / approxInputTokens) * 100)
-        : 0,
+      compression_ratio: compressionRatio,
     },
   })
 }
@@ -158,9 +179,9 @@ Return this exact structure:
 export async function GET() {
   return NextResponse.json({
     endpoint: 'POST /api/summarise',
-    description: 'Compress an AI agent conversation into structured memory. Returns decisions, open questions, entities, next actions, and key facts.',
+    description: 'Compress a conversation history (messages array) into structured memory. Use this when you have a multi-turn conversation between user/assistant/system roles. For unstructured text (meeting notes, documents, transcripts), use /api/extract instead.',
     body: {
-      messages: 'array (required) — conversation history as [{role: "user"|"assistant"|"system", content: "string"}]',
+      messages: 'array (required) — conversation history as [{role: "user"|"assistant"|"system", content: "string"}]. Max ~120,000 characters total.',
       focus: 'string (optional) — topic or entity to prioritise in the summary',
       max_summary_tokens: 'number (optional, 50–1000, default 300) — controls summary depth',
     },
