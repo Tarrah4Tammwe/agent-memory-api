@@ -21,6 +21,7 @@ import {
   validateExtractFields,
   validateExtractText,
 } from '@/lib/validate'
+
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
@@ -41,11 +42,6 @@ export async function POST(req: NextRequest) {
   const denied = gatePostAccess(req, requestId)
   if (denied) return denied
 
-  const apiKey = anthropicKey()
-  if (!apiKey) {
-    return jsonError(503, 'API key not configured', requestId)
-  }
-
   const parsedBody = await readJsonBody(req, requestId, EXTRACT_MAX_BODY_BYTES)
   if (!parsedBody.ok) return parsedBody.response
 
@@ -54,6 +50,11 @@ export async function POST(req: NextRequest) {
 
   const fieldsResult = validateExtractFields(parsedBody.body.extract)
   if (!fieldsResult.ok) return jsonError(400, fieldsResult.error, requestId)
+
+  const apiKey = anthropicKey()
+  if (!apiKey) {
+    return jsonError(503, 'API key not configured', requestId)
+  }
 
   const { text } = textResult
   const requestedFields = fieldsResult.fields

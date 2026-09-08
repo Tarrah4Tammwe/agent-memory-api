@@ -34,11 +34,6 @@ export async function POST(req: NextRequest) {
   const denied = gatePostAccess(req, requestId)
   if (denied) return denied
 
-  const apiKey = anthropicKey()
-  if (!apiKey) {
-    return jsonError(503, 'API key not configured', requestId)
-  }
-
   const parsedBody = await readJsonBody(req, requestId, SUMMARISE_MAX_BODY_BYTES)
   if (!parsedBody.ok) return parsedBody.response
 
@@ -53,6 +48,11 @@ export async function POST(req: NextRequest) {
 
   const sizeError = validateConversationSize(messagesResult.messages)
   if (sizeError) return jsonError(400, sizeError.error, requestId)
+
+  const apiKey = anthropicKey()
+  if (!apiKey) {
+    return jsonError(503, 'API key not configured', requestId)
+  }
 
   const { messages, focus, maxSummaryTokens } = {
     messages: messagesResult.messages,
