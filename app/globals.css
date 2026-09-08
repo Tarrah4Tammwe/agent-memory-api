@@ -1,0 +1,173 @@
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+  background: #0f0f0f;
+  color: #e8e8e8;
+  line-height: 1.5;
+}
+
+code,
+pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 60px 24px;
+}
+
+.kicker {
+  font-size: 13px;
+  color: #b0b0b0;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.hero {
+  font-size: clamp(32px, 5vw, 42px);
+  font-weight: 700;
+  margin: 12px 0 16px;
+  line-height: 1.15;
+  color: #fff;
+}
+
+.lede {
+  font-size: 18px;
+  color: #c8c8c8;
+  max-width: 560px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 48px 0;
+}
+
+.card,
+.use-card {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+}
+
+.card {
+  padding: 20px 24px;
+}
+
+.card-label {
+  font-size: 11px;
+  color: #9a9a9a;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+.card-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.card-desc,
+.endpoint-copy,
+.use-card {
+  font-size: 13px;
+  color: #b8b8b8;
+}
+
+.endpoint-copy {
+  font-size: 15px;
+  margin-bottom: 12px;
+}
+
+.section {
+  margin-bottom: 48px;
+}
+
+.section h2 {
+  font-size: 22px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 24px;
+}
+
+.method-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.method {
+  background: #1d4ed8;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.endpoint-path {
+  font-size: 15px;
+  color: #e5e5e5;
+}
+
+.block {
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  padding: 16px;
+  font-size: 13px;
+  color: #d4d4d4;
+  overflow-x: auto;
+}
+
+.use-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.use-card {
+  padding: 14px 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  border-radius: 6px;
+}
+
+.page-footer {
+  margin-top: 64px;
+  padding-top: 24px;
+  border-top: 1px solid #222;
+  font-size: 13px;
+  color: #8a8a8a;
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 36px 16px;
+  }
+
+  .cards,
+  .use-grid {
+    grid-template-columns: 1fr;
+  }
+}
